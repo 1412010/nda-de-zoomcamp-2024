@@ -1,13 +1,14 @@
 # Week 1 - Introduction & Prerequisites (GCP, Docker, Terraform)
 
-### Table of contents:
+### Table of contents
+
 1. [Introduction to GCP](#part-1)
 2. [Introduction to Docker](#part-2)
 3. [SQL Refresher](#part-3)
 4. [Set up Google Cloud environment](#part-4)
+5. [Infrastruture as Code with Terraform](#part-5)
 
     [Additional resources](#resource)
-
 
 ## Part 1: Introduction to GCP <a id='part-1'></a>
 
@@ -83,21 +84,21 @@ Ex: ```docker run -it test::pandas```
     ```
 
 + Pass arguments into Container:
-    + In pipeline.py:
+  + In pipeline.py:
 
         ```python
         import sys
         ...
         print(sys.argv[0])
         ```
-    
-    + Modify dockerfile to run ```pipeline.py``` at start:
+
+  + Modify dockerfile to run ```pipeline.py``` at start:
 
         ```docker
         ENTRYPOINT ["python", "pipeline.py"]
         ```
 
-    + Command line:  
+  + Command line:  
 
         ```bash
         docker run -it test::pandas <argument>
@@ -110,6 +111,7 @@ Ex: ```docker run -it test::pandas```
     ```
 
 + Kill a running container:
+
     ```bash
     docker kill <container id>
     ```
@@ -135,7 +137,7 @@ services:
       - pg-network    
 ```
 
-+ Command to run: 
++ Command to run:
 
 ```bash
 docker run -it \
@@ -147,19 +149,20 @@ docker run -it \
 postgres:13
 ```
 
-+ Note: 
-    + -e or environment: define the environment variable for the container, which is posgres.
-    + -v or volumnes: map the local folder on host machine to the folder on docker container, this is for save file records of postgres.
-    + -p or ports: map the port from the host machine to the port in the docker container, this is for sending queries to postgres in container
++ Note:
+  + -e or environment: define the environment variable for the container, which is posgres.
+  + -v or volumnes: map the local folder on host machine to the folder on docker container, this is for save file records of postgres.
+  + -p or ports: map the port from the host machine to the port in the docker container, this is for sending queries to postgres in container
 
 + Access the postgres database:
 
     ```bash
     pgcli -h localhost -p 5432 -u root -d ny_taxi
     ```
+
     Enter the password of the user.
 
-+ Download New york Taxi Trip data: https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
++ Download New york Taxi Trip data: <https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page>
 
 + Read csv file with pandas in python:  
 
@@ -194,7 +197,7 @@ while True:
     print('inserted another chunk..., took %.3f seconds' % (t_end - t_start))
 ```
 
-+ Run query with python and sqlalchemy (must install psycopg2-binary): 
++ Run query with python and sqlalchemy (must install psycopg2-binary):
 
 ```python
 query = """
@@ -208,13 +211,16 @@ pd.read_sql(query, con=engine)
 
 + **pgAdmin** is a web-based UI tool to *interact* with Postgres database sessions, useful for performing database administration.
 
-+ Download pgAdmin: https://www.pgadmin.org/
++ Download pgAdmin: <https://www.pgadmin.org/>
 
-+ Create a network in Docker, which will be used to linked database in container to host machine: 
++ Create a network in Docker, which will be used to linked database in container to host machine:
+
     ```bash
     docker create network <networ_name>
     ```
+
 + Re-run the container of posgres to connect to the network:
+
     ```bash
     docker run -it \
         -e POSTGRES_USER="root" \
@@ -226,7 +232,8 @@ pd.read_sql(query, con=engine)
     postgres:13
     ```
 
-+ Run pgAdmin within Docker container: 
++ Run pgAdmin within Docker container:
+
     ```bash
     docker run -it \
     -e PGADMIN_DEFAULT_EMAIL="admin@admin.com" \
@@ -240,7 +247,7 @@ pd.read_sql(query, con=engine)
 + Access pgAdmin on the host machine: <localhost:8080>  
  Then enter admin email & password
 
-+ On pgAdmin, click Server -> Create Server... -> Fill information: 
++ On pgAdmin, click Server -> Create Server... -> Fill information:
 ![pgAdmin create Server](./images/pgadmin_create.jpg)
 
 ### 2.4 Dockerize the Ingestion script
@@ -248,6 +255,7 @@ pd.read_sql(query, con=engine)
 + Create the ingestion script [ingest_data.py](./2_docker/ingest_data.py). Make sure the script can read the arguments from bash command.
 
 + Define the Dockerfile:
+
     ```Dockerfile
     FROM python:3.9
 
@@ -261,11 +269,13 @@ pd.read_sql(query, con=engine)
     ```
 
 + Build the Dockerfile:
+
     ```bash
     docker build -t taxi_ingest:v001
     ```
 
 + Run the container with arguments:
+
     ```bash
     docker run -it \
     --network=pg-network \
@@ -283,7 +293,7 @@ pd.read_sql(query, con=engine)
 
 + **Docker-Compose** is a tool for defining and running multiple services of a container using a single YAML file configuration.
 
-+ Define the services (Postgres, pgAdmin) in [docker-compose.yml](./2_docker/docker-compose.yml): 
++ Define the services (Postgres, pgAdmin) in [docker-compose.yml](./2_docker/docker-compose.yml):
 
     ```yml
     services:
@@ -315,20 +325,21 @@ pd.read_sql(query, con=engine)
     ```
 
 + Run the Docker-compose container:  
+
     ```bash
     docker-compose up
     ```
 
 + Shutdown the Docker-compose container:
+
     ```bash
     docker-compose down
     ```
 
 ## Part 3: SQL Refresher <a id='part-3'></a>
 
-Refer to PostgreSQL document: 
-https://www.postgresql.org/docs/current/index.html
-
+Refer to PostgreSQL document:
+<https://www.postgresql.org/docs/current/index.html>
 
 ## Part 4: Set up Google Cloud environment <a id='part-4'></a>
 
@@ -366,6 +377,4 @@ Create config file:
 ```wget https://repo.anaconda.com/archive/Anaconda3-2022.10-Linux-x86_64.sh```  
 ```bash Anaconda3-2022-10-Linux-x86_64.sh```
 
-
-## Part 5: Infrastructure as Code with Terraform
-
+## Part 5: Infrastructure as Code with Terraform <a id='part-5'></a>
