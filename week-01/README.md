@@ -274,6 +274,11 @@ pd.read_sql(query, con=engine)
     docker build -t taxi_ingest:v001
     ```
 
++ Set the ```URL``` as a bash parameter:
+    ```bash
+    $URL="<url>"
+    ```
+
 + Run the container with arguments:
 
     ```bash
@@ -282,12 +287,14 @@ pd.read_sql(query, con=engine)
     taxi_ingest:v001 \
         --user=root \
         --password=root \
-        --host=localhost \
+        --host=pgdatabase \
         --port=5432 \
         --db=ny_taxi \
         --table_name=yellow_taxi_trips \
-        --url=$(URL)
+        --url=$($URL)
     ```
+
+    + Please notice to change the host param to the correct name of the created host.
 
 ### 2.5. Running Postgres and pgAdmin with Docker-Compose
 

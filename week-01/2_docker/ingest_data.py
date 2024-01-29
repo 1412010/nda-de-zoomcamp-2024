@@ -14,7 +14,8 @@ def main(params):
     url = params.url
 
     zip_name = 'download'
-    csv_name = 'green_tripdata_2019-01.csv.gz'
+    csv_name = 'green_tripdata_2019-09.csv.gz'
+    
     
     # Dowload the CSV
     os.system(f"wget {url} -O {csv_name}")
