@@ -122,7 +122,7 @@
 
 ### Configure Mage
 
-+ Clone Mage configuration from Github: https://github.com/mage-ai/mage-zoomcamp
++ Clone Mage configuration from Github: <https://github.com/mage-ai/mage-zoomcamp>
 
 + From  Shell, pull the lates Mage image: 
 
@@ -143,397 +143,137 @@
     docker-compose up
     ```
 
-+ Access Mage UI from url: http://localhost:6789/
++ Access Mage UI from url: <http://localhost:6789/>
 
++ Explore the example pipelines in Pipelines section.
 
+### Configure Postgres for Mage:
 
++ On Mage UI, go to **Files** then select file ````io_config.yaml`` to edit.
 
++ Add new ```dev``` environment at the bottom: 
 
-## Part 3: ETL with GCP & Prefect <a id='part-3'></a>
-
-+ Create new python file ```etl_web_to_gcs.py```.
-
-+ Import required libraries
-
-    ```python
-    from pathlib import Path
-    import pandas as pd
-    from prefect import flow, task
-    from prefect.tasks import task_input_hash
-    from prefect_gcp.cloud_storage import GcsBucket
+    ```yaml
+    dev:
+      # PostgresSQL
+      POSTGRES_CONNECT_TIMEOUT: 10
+      POSTGRES_DBNAME: "{{ env_var('POSTGRES_DBNAME') }}"
+      POSTGRES_SCHEMA: "{{ env_var('POSTGRES_SCHEMA') }}" # Optional
+      POSTGRES_USER: "{{ env_var('POSTGRES_USER') }}"
+      POSTGRES_PASSWORD: "{{ env_var('POSTGRES_PASSWORD') }}"
+      POSTGRES_HOST: "{{ env_var('POSTGRES_HOST') }}"
+      POSTGRES_PORT: "{{ env_var('POSTGRES_PORT') }}"
     ```
 
-+ Define the main ETL **flow** with multiple **tasks** to run:
-    ```python
-    @flow()
-    def etl_web_to_gcs() -> None:
-        """The main ETL function"""
-        color = 'yellow'
-        year = 2021
-        month = 1
-        dataset_file = f'{color}_tripdata_{year}-{month:02}.csv.gz'
-        dataset_url = f'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/{color}/{dataset_file}'
-        
-        df = fetch(dataset_url)
-        df_clean = clean(df)
-        
-        path = write_local(df_clean, color, dataset_file)
-        write_gcs(path)
-        pass
++ Go to **Pipelines** and add a new **Standard (batch)** pipeline then add a new **Data Loader** block: 
+  + Type: SQL.
+  + Name: test postgres.
+  + Connection: PostgreSQL
+  + Profile: ```dev```.
+  + Use raw SQL: Yes.
+  + SQL code for test:
+
+    ```sql
+    SELECT 1;
     ```
 
-+ Define the **task** function to fetch data from web URL:
-
-    ```python
-    @task(log_prints=True, retries=3)
-    def fetch(url: str) -> pd.DataFrame:
-        """Read taxi data from web into pandas Dataframe"""
-        print(url)
-        df = pd.read_csv(url)
-        return df
-    ```
-
-+ Define the **task** function to clean data:
-
-    ```python
-    @task(log_prints=True)
-    def clean(df = pd.DataFrame) -> pd.DataFrame:
-        """Fix dtype issue"""
-        df.tpep_pickup_datetime = pd.to_datetime(df.tpep_pickup_datetime)
-        df.tpep_dropoff_datetime = pd.to_datetime(df.tpep_dropoff_datetime)
-        return df   
-    ```
-
-+ Define the **task** function to write cleaned data locally as parquet file format:
-
-    ```python
-    @task(log_prints=True)
-    def write_local(df, color, dataset_file) -> Path:
-        """Write dataframe out locally as parquet file"""
-        path = Path(f"data/{color}/{dataset_file}.parquet").as_posix()
-        df.to_parquet(path, compression='gzip')
-        return path
-    ```
-  + As a parquet format, we should define the compression method (gzip, pyarrow, etc.)
-
-+ Define the **task** function to upload the parquet file into GCS Bucket:
-  + On GCP, create an account (if not have).
-  + Create a new GCS Bucket with globally unique name.
-  + Create a service account with necessary permissions so as to interact with GCP Cloud Storage. Permission here: **Storage Admin**.
-  + Download the JSON key of the service account.
-  + Register GCP blocks in Prefect:  
-    ```prefect block register -m prefect_gcp```
-  + On Prefect UI, create a GCP Credentials block with the required information (key).
-  + Create a GCP Bucket block and link to the credential block.
-  + Load the block in python code and define the **task** function:
-    ```python
-    @task(log_prints=True)
-    def write_gcs(path: Path) -> None:
-        """Upload local parquet file to GCS"""
-        gcs_block = GcsBucket.load("gcs-bucket-block")
-        gcs_block.upload_from_path(
-            from_path=path,
-            to_path=path
-        )
-    ```
-
-  + Go to the GCS Bucket and check if the file is successfully uploaded.
-
-## Part 4: From Google Cloud Storage to BigQuery <a id='part-4'></a>
-
-+ Create new python file ```etl_gcs_to_bq.py```
-
-+ Import the required libraries:
-    ```python
-    from pathlib import Path
-    import pandas as pd
-    from prefect import flow, task
-    from prefect_gcp.cloud_storage import GcsBucket
-    from prefect_gcp import GcpCredentials
-    ```
-
-+ Define the main **flow**:
-    ```python
-    @flow()
-    def etl_gcs_to_bq(color, year, month) -> None:
-        """The main ETL function to load data to BigQuery"""
-        
-        path = extract_from_gcs(color, year, month)
-        
-        df = transform_data(path) # do nothing but read dataframe only
-        write_to_bq(df)
-        print(f"BQ: written {len(df)} rows successfully into Bigquery")
-        pass
-    
-    if __name__ == '__main__':
-        etl_gcs_to_bq('yellow', 2021, 11)
-    ```
-
-+ Define the **task** function to extract data from GCS using Prefect blocks:
-    ```python
-    @task(log_prints=True, retries=3)
-    def extract_from_gcs(color: str, year: str, month: str) -> Path:
-        """Download tripdata from GCS"""
-        dataset_file = f'{color}_tripdata_{year}-{month:02}.csv.gz'
-        gcs_path = f"data/{color}/{dataset_file}.parquet"
-        
-        gcs_block = GcsBucket.load("gcs-bucket-block")
-        gcs_block.get_directory(
-            from_path=gcs_path, 
-            local_path=f'../data/'
-        )
-        return Path(f'../data/{gcs_path}')
-    ```
-
-+ Define the **task** function to do simple data transformation:
-
-    ```python
-    @task(log_prints=True)
-    def transform_data(path: Path) -> pd.DataFrame:
-        """Brief data cleaning"""    
-        df = pd.read_parquet(path)
-        print(f"pre: missing passenger count: {df['passenger_count'].isna().sum()}")
-        df['passenger_count'] = df['passenger_count'].fillna(0)
-        print(f"post: missing passenger count: {df['passenger_count'].isna().sum()}")
-        return df
-    ```
-
-+ On GCP, go to Biquery service, create a new dataset and a table from parquet file in GCS Bucket (uploaded from Part 3). This dataset and table will be the destination of our flow.
-
-+ Make sure to add the Bigquery access permission to your service account (created from Part 3).
-
-+ Define the **task** function to write cleaned data into BigQuery table:
-    ```python
-    @task(log_prints=True)
-    def write_to_bq(df: pd.DataFrame) -> None:
-        """Write Dataframe into Bigquery"""
-        gcp_credentials_block = GcpCredentials.load("nda-gcp-credentials")
-        df.to_gbq(
-            destination_table='ny_taxi_trips.yellow_trips_data',
-            project_id='nda-de-zoomcamp',
-            credentials=gcp_credentials_block.get_credentials_from_service_account(),
-            chunksize=50_000,
-            if_exists='append'
-        )
-    ```
-
-+ Execute the flow:  
-    ```bash
-    python etl_gcs_to_bq.py
-    ```
-
-+ Go to Bigquery and perform a query to check if data is written succesfully.
-    ```SQL
-    SELECT count(*)
-    FROM `ny_taxi_trips.yellow_trips_data`
-    ```
-
-
-## Part 5: Parameterization and deployments  <a id='part-5'></a>
-
-
-+ In this section, we will parameterize the ETL flow of web-to-gcs.
-
-### Flow parameterization
-+ Parameterizing allows you to configure and generalize the **flow** with parameters.
-
-+ First, add the parameters to your main **flow** function:
-
-    ```python
-    @flow()
-    def etl_web_to_gcs(color: str, year: int, month: int) -> None:
-        """The main ETL function"""
-        # ....
-    ```
-
-+ Add the parent flow to execute multiple **flows**:
-
-    ```python
-    @flow(name='parent_flow')
-    def etl_parent_flow(color: str = 'yellow',
-                        year: int = 2021,
-                        months: list[int] = [1, 2]
-    ) -> None:
-        # ....
-    ```
-  + This flow will run multiple main **flows** to upload taxi data of multiple months in a year.
-
-+ The ```__main__``` function:
-    ```python
-    if __name__ == '__main__':
-        color = 'yellow'
-        year = 2021
-        months = [1, 2, 3] 
-        etl_parent_flow(color, year, months)
-    ```
-
-+ Let cache the ```fetch``` function:
-    ```python
-    from datetime import timedelta
-    from prefect.tasks import task_input_hash
-
-    @task(log_prints=True,
-          retries=3,
-          cache_key_fn=task_input_hash,
-          cache_expiration=timedelta(days=1))
-    def fetch(url: str) -> pd.DataFrame:
-        """Read taxi data from web into pandas Dataframe"""
-        # ....
-    ```
-
-+ Leave the other **task** funtions as is. Execute the parameterized **flow**:
-    ```bash
-    python parameterization_flow.py
-    ```
-
-### Prefect Deployments
-
-+ **Prefect Deployment** is a server-side concept that encapsulates the flow, allowing it to be *scheduled* and *triggered* via the API.
-
-+ Document for Prefect Deployment: https://docs.prefect.io/latest/concepts/deployments/
-
-+ Build the deployment:  
-    ```bash
-    prefect deployment build ./parameterized_flow.py:etl_parent_flow -n "Parameterized ETL"
-    ```
-  + We should define which is the entry flow in the python code, in this case, the ```etl_parent_flow``` flow.
-
-+ Prefect will create a YAML file that contains the metadata of the deployment.
-
-+ We can adjust the metadata in the YAML file or on the Prefect UI.
-
-+ Apply the **flow** to Prefect API:
-    ```bash
-    prefect deployment apply etl_parent_flow-deployment.yaml
-    ```
-
-+ To execute the **flow**, now we need an **agent**, which is a execution environment to run the flow, in our case, our local machine.
-
-+ On Prefect UI, go to **Work Queues** to check available agents. There is always a ```default``` agent.
-
-+ Let's start the ```default``` agent:
-    ```bash
-    prefect agent start --work-queue "default"
-    ```
-
-+ Go to Prefect UI, go to **Deployments** to check your deployed **flow**. As it was parameterized, we can adjust the parameters of the **flow**.
-
-+ Click **Quick run** to trigger the **flow**.
-
-### Prefect Notifications
-
-+ **Prefect Notifications** allows to alert the failure or success of a flow run through multiple kinds of channel.
-
-+ On Prefect UI, go to **Notifications** and click **Create Notification**.
-  + Pick a **Run state** to trigger the notification.
-  + Select and configure the notification channel you want to send the alert.
-  + Click **Create** to generate the notification
-
-    ![Alt text](images/image-3.png)
-
-## Part 6: Scheduling and Containerization <a id='part-6'></a>
-
-### Flow Scheduling
-
-+ On Prefect UI, go to **Deployments**, select your deployed flow.
-+ Under **Schedule**, click **Add** to add a new schedule.
-+ Select your time schedule as you would like to have.
-![Alt text](images/image-4.png)
-
-+ We can add multiple schedules for one **flow**.
-
-+ We add schedule to the **flow** when deploying using *cron*:
-    ```bash
-    prefect deployment build parameterized_flow.py:etl_parent_flow -n "ETL 2" --cron "0 0 * * *" -a
-    ```
-
-### Dockerize the flow in container
-
-+ Create a ```docker-requirement.txt``` to list the required libraries for the image:
-    ```txt
-    pandas==1.5.2
-    prefect==2.7.7
-    prefect-sqlalchemy==0.2.2
-    prefect-gcp[cloud_storage]==0.2.4
-    protobuf==4.21.11
-    pyarrow==10.0.1
-    pandas-gbq==0.18.1
-    psycopg2-binary==2.9.5
-    sqlalchemy==1.4.46
-    ```
-
-+ Create and define a ```Dockerfile```:
-    ```Dockerfile
-    FROM prefecthq/prefect:2.7.7-python3.10
-
-    COPY docker-requirements.txt .
-
-    RUN pip install -r docker-requirements.txt --trusted-host pypi.python.org
-
-    COPY 02_gcp /opt/prefect/flows
-    ```
-
-+ Build the Docker image:
-    ```bash
-    docker image build -t ngducanh1611/prefect:flow
-    ```
-
-+ Push the image to Docker Hub:
-    ```bash
-    docker image push ngducanh1611/prefect:flow
-    ```
-
-+ On Prefect, create a **Docker container** block. Define the image that you built for the flow.
-  + Set ```Auto Remove``` to ```On```.
-
-+ We need to deploy the **flow** from the python code inside the docker image.
-
-+ Create a python file ```docker_deploy.py```:
-    ```python
-    from prefect.deployments import Deployment
-    from prefect.infrastructure.docker import DockerContainer
-    from parameterization_flow import etl_parent_flow
-
-    docker_container_block = DockerContainer.load("docker-block")
-
-    docker_dep = Deployment.build_from_flow(
-        flow=etl_parent_flow,
-        name='docker-flow',
-        infrastructure=docker_container_block
-    )
-
-    if __name__ == "__main__":
-        docker_dep.apply()
-    
-    ```
-
-+ Execute python code to deploy the flow:
-    ```bash
-    python docker_deploy.py
-    ```
-
-+ Set the Prefect UI endpoint url:
-    ```bash
-    prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
-    ```
-  + This will allow the Docker container to interact with the Prefect Orion server.
-  + If we have a Prefect cloud, we should set the URL to your Orion on the cloud.
-
-+ Start the ```default``` agent:
-    ```bash
-    prefect agent start --work-queue "default"
-    ```
-
-+ Execute the **flow**:
-    ```bash
-    prefect deployment run etl-prent-flow/docker-flow -p "months=[1,2]"
-    ```
-  + ```-p``` allows to override the parameters of the **flow**.
-
-+ Check the **flow run**  on Prefect UI.
-
-## Additional resources <a id='resource'></a>
-
-+ Prefect official document: https://docs.prefect.io/latest/
-+ Prefect Cloud: https://app.prefect.cloud/
-+ Prefect Community: https://discourse.prefect.io
+  + Hit run to test the connection to Postgres.
+
+## Part 3: Build an ETL
+
+### Extract data from API
+
++ Declare a new **Standard (batch)** pipeline in Mage UI. Name the pipeline: ```api_to_postgres```.
+
++ Create a new **Data Loader** block:
+  + Name: ```load_api_data```
+  + Language: Python.
+  + Type: API.
+
++ Code for method ```load_api_data```:
+
+  ```python
+  @data_loader
+  def load_data_from_api(*args, **kwargs):
+      """
+      Template for loading data from API
+      """
+      url = 'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/yellow_tripdata_2021-01.csv.gz'
+      
+      taxi_dtypes = {
+          'VendorID': pd.Int64Dtype(),
+          'passenger_count': pd.Int64Dtype(),
+          'trip_distance': float,
+          'RatecodeID': pd.Int64Dtype(),
+          'store_and_fwd_flag': str,
+          'PULocationID': pd.Int64Dtype(),
+          'DOLocationID': pd.Int64Dtype(),
+          'payment_type': pd.Int64Dtype(),
+          'fare_amount': float,
+          'extra': float,
+          'mta_tax': float,
+          'tip_amount': float,
+          'tolls_amount': float,
+          'improvement_surcharge': float,
+          'total_amount': float,
+          'congestion_surcharge': float 
+      }
+
+      parse_dates = ['tpep_pickup_datetime', 'tpep_dropoff_datetime']
+
+      return pd.read_csv(url, sep=",", compression="gzip", 
+                        dtype =taxi_dtypes, parse_dates=parse_dates)
+  ```
+
+### Transform data
+
++ Create a new **Transformer** block: 
+  + Name: ```transform_taxi_data```.
+  + Language: Python.
+  + Type: No template.
+
++ Code for transfroming taxi trip data - to remove trips with 0 passenger:
+
+  ```python
+  @transformer
+  def transform(data, *args, **kwargs):
+      print(f"Processing: remove trips with 0 passenger: { data['passenger_count'].isin([0]).sum() } rows")
+      # print(data["passenger_count"].isin([0]).sum())
+      return data[data['passenger_count'] > 0]
+  ```
+
++ Add test function to make sure the output as expected:
+
+  ```python
+  @test
+  def test_output(output, *args) -> None:
+      assert output['passenger_count'].isin([0]).sum() == 0, "There are still trips with 0 passenger"
+  ```
+
++ Hit **Run** to see result.
+
+### Load data to Postgres
+
++ Create a new **Data exporter** block:
+  + Name: ```taxi_data_to_postgres```
+  + Language: Python
+  + Type: PostgreSQL
+
++ Edit configuration for the Postgres connection: 
+  
+  ```python
+  #...
+  schema_name = 'ny_taxi'  # Specify the name of the schema to export data to
+  table_name = 'yellow_trip_data'  # Specify the name of the table to export data to
+  config_path = path.join(get_repo_path(), 'io_config.yaml')
+  config_profile = 'dev'
+  #...
+  ```
+
++ Hit **Run** to see result.
+
++ We can test the data by create a new **Data Loader** block then query the data: 
+  
+  ```sql
+  SELECT * FROM ny_taxi.yellow_trip_data LIMIT 10;
+  ```
