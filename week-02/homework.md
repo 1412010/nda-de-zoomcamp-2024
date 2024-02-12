@@ -73,7 +73,7 @@ def load_data_from_api(*args, **kwargs):
       else:  # green
           parse_dates = ['lpep_pickup_datetime', 'lpep_dropoff_datetime']
 
-      df = pd.read_csv(url, sep=",", compression="gzip", 
+      df = pd.read_csv(url, sep=",",              compression="gzip", 
                       dtype=taxi_dtypes, parse_dates=parse_dates)
       list_df.append(df.copy())
   

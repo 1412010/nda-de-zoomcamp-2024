@@ -1,7 +1,8 @@
 week-01/2_docker/ny_taxi_postgres_data
-week-2/yellow_tripdata_2021-01.csv.gz
-week-2/data
-week-2/02_gcp/__pycache__
+week-02/yellow_tripdata_2021-01.csv.gz
+week-02/data
+week-02/02_gcp/__pycache__
+week-03/nda-de-zoomcamp-060ebbb8d83e.json
 _github_token.txt
 # Default .gitignore content added by dbt Cloud# you shouldn't commit these into source control
 # these are the default directory names, adjust/add to fit your needs
