@@ -173,7 +173,7 @@ Where is the data stored in the External Table you created?
 + Big Table
 + Container Registry
 
-&rarr; Solution: Big Table
+&rarr; Solution: GCP Bucket. Bigquery does not store data of external table, only the schema and metadata.
 
 ## Question 7:
 
@@ -183,3 +183,19 @@ It is best practice in Big Query to always cluster your data:
 + False
 
 &rarr; Solution: False. Depends on the circumstances.
+
+## (Bonus) Question 8:
+
+No Points: Write a `SELECT count(*)` query FROM the materialized table you created. How many bytes does it estimate will be read? Why?
+
+&rarr; Solution: 
+
++ Query statement: 
+
+  ```sql
+  SELECT COUNT(*)
+  FROM `nda-de-zoomcamp.ny_taxi_trips.green_tripdata_2022_non_partitoned`
+  ```
+
++ Check the query estimamte, it is saying *"This query will processed 0B when run"*
++ Because the number of rows is already saved in the metadata of the table when created, hence this query does not scan the data, instead it returns the metadata.
