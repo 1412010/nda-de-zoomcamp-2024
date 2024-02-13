@@ -1,4 +1,4 @@
-# Solution for homework of Week-03 Homework
+# Solution for homework of Week-03
 
 <b>SETUP:</b></br>
 Create an external table using the Green Taxi Trip Records Data for 2022. </br>
@@ -68,8 +68,8 @@ What is the estimated amount of data that will be read when this query is execut
   `nda-de-zoomcamp.ny_taxi_trips.external_green_tripdata_2022`
   ```
 
-  + Check the field ```Byte Processed``` in Job Information.
-  + Result: ```6.41 MB```
+  + Check the query measurement on the top right corner.
+  + Result: ```0 MB```
 
 + Query Materialized table:
 
@@ -79,7 +79,7 @@ What is the estimated amount of data that will be read when this query is execut
   `nda-de-zoomcamp.ny_taxi_trips.green_tripdata_2022_non_partitoned`
   ```
 
-  + Check the field ```Byte Processed``` in Job Information.
+  + Check the query measurement on the top right corner.
   + Result: ```6.41 MB```
 
 + Answer:
